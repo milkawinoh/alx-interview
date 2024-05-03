@@ -1,88 +1,39 @@
 #!/usr/bin/python3
+"""
+Log parsing
+"""
 
 import sys
-import re
-import signal
-from typing import Optional, Tuple, Dict
 
-total_file_size: int = 0
-status_code_counts: Dict[int, int] = {}
+if __name__ == '__main__':
 
+    filesize, count = 0, 0
+    codes = ["200", "301", "400", "401", "403", "404", "405", "500"]
+    stats = {k: 0 for k in codes}
 
-def parse_log_entry(line: str) -> Optional[Tuple[str, int, int]]:
-    """
-    Parse a log entry string and extract IP address, status code,
-    and file size.
-
-    Args:
-        line (str): Log entry string to parse.
-
-    Returns:
-        Optional[Tuple[str, int, int]]: A tuple containing IP address,
-        status code, and file size,
-            or None if the log entry does not match the expected format.
-    """
-    patn = r'^([\d\.]+) - \[(.*?)\] "GET /projects/260 HTTP/1\.1" (\d+) (\d+)'
-    match = re.match(patn, line)
-    if match:
-        ip_address = match.group(1)
-        status_code = int(match.group(3))
-        file_size = int(match.group(4))
-        return ip_address, status_code, file_size
-    return None
-
-
-def print_statistics() -> None:
-    """
-    Print computed statistics: total file size and count of each status code.
-    """
-    print(f"Total file size: {total_file_size}")
-    for code in sorted(status_code_counts):
-        print(f"{code}: {status_code_counts[code]}")
-
-
-def signal_handler(sig: int, frame) -> None:
-    """
-    Signal handler to print statistics and exit upon receiving SIGINT.
-
-    Args:
-        sig (int): Signal number.
-        frame: Current stack frame (not used).
-    """
-    print_statistics()
-    sys.exit(0)
-
-
-def main() -> None:
-    """
-    Main function to read log entries from stdin, parse them,
-    and compute statistics.
-    """
-    signal.signal(signal.SIGINT, signal_handler)
-    line_count: int = 0
+    def print_stats(stats: dict, file_size: int) -> None:
+        print("File size: {:d}".format(filesize))
+        for k, v in sorted(stats.items()):
+            if v:
+                print("{}: {}".format(k, v))
 
     try:
         for line in sys.stdin:
-            line = line.strip()
-            if line:
-                log_entry = parse_log_entry(line)
-                if log_entry:
-                    _, status_code, file_size = log_entry
-                    total_file_size += file_size
-                    if status_code in status_code_counts:
-                        status_code_counts[status_code] += 1
-                    else:
-                        status_code_counts[status_code] = 1
-                    line_count += 1
-
-                    if line_count % 10 == 0:
-                        print_statistics()
-
+            count += 1
+            data = line.split()
+            try:
+                status_code = data[-2]
+                if status_code in stats:
+                    stats[status_code] += 1
+            except BaseException:
+                pass
+            try:
+                filesize += int(data[-1])
+            except BaseException:
+                pass
+            if count % 10 == 0:
+                print_stats(stats, filesize)
+        print_stats(stats, filesize)
     except KeyboardInterrupt:
-        # Handle KeyboardInterrupt (Ctrl+C) gracefully
-        print_statistics()
-        sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
+        print_stats(stats, filesize)
+        raise
