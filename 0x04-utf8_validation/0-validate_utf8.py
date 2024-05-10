@@ -1,4 +1,4 @@
-
+#!/usr/bin/python3
 def validUTF8(data):
     """
     Validate whether a given list of integers represents a
